@@ -136,11 +136,14 @@ int main() {
               }
              }
             
+            // define lane-numbers
             int leftlane = 0;
             int midlane = 1;
             int rightlane = 2;
+            // define free zone distances to the front and back of the vehicle in meters
             int freezone_infront = 25;
             int freezone_behind = 20;
+            // initialize tracking variables for the shortest distance to the next car in left and right lane with maximum value
             double freedistance_left = std::numeric_limits<double>::max();
             double freedistance_right = std::numeric_limits<double>::max();
                                        
@@ -160,10 +163,10 @@ int main() {
                  freedistance_left = check_car_s-car_s;
               }
 
+              //checks if left lane is occupied (if a car is in the defined freezones front/rear)
               if((check_car_s-car_s > - freezone_behind) && (check_car_s-car_s < freezone_infront))           
               {  
                 left_lane_occupied = true;     
-                //std::cout << "left_lane_occupied " << std::endl;
               }
             }
             
@@ -183,13 +186,14 @@ int main() {
                  freedistance_right = check_car_s-car_s;
               }
               
+              //checks if right lane is occupied (if a car is in the defined freezones front/rear)
               if((check_car_s-car_s > - freezone_behind) && (check_car_s-car_s < freezone_infront))           
               {  
-                right_lane_occupied = true;  
-                //std::cout << "right_lane_occupied " << std::endl;
+                right_lane_occupied = true;
               }
             }
             
+            // checks car in the mid lane
             if(d < (2+4*midlane+2) && d > (2+4*midlane-2))
             {
               double vx = sensor_fusion[i][3];
@@ -199,26 +203,28 @@ int main() {
               
               check_car_s+=((double)prev_size*.02*check_speed); //if using previous points can project s value outwards in time
               
+              //checks if mid lane is occupied (if a car is in the defined freezones front/rear)
               if((check_car_s-car_s > - freezone_behind) && (check_car_s-car_s < freezone_infront))           
               {  
-                mid_lane_occupied = true;       
-                //std::cout << "mid_lane_occupied " << std::endl;
+                mid_lane_occupied = true;
               }
             }
-            
+
+            // if the ego-vehicle detects a car that is too close to it, in its own lane: start behavioural planning for lane-switch
             if (too_close == true) {            
               if (lane == midlane)
               {
                 if ( (left_lane_occupied == true) && (right_lane_occupied == true) ) {
-                  //std::cout << "cant move " << std::endl;
+                  // keep lane, if left and right lane is occupied
                   lanegoal = lane;
                 } else if ( (left_lane_occupied == false) && (right_lane_occupied == true) ) {
                   lanegoal = leftlane; 
-                  //std::cout << "want to move left " << std::endl;
+                  // switch to left lane, if only right lane is occupied
                 } else if ( (left_lane_occupied == true) && (right_lane_occupied == false) ) {
                   lanegoal = rightlane; 
-                  //std::cout << "want to move right " << std::endl;
+                  // switch to right lane, if only left lane is occupied
                 } else if ( (left_lane_occupied == false) && (right_lane_occupied == false) ) {
+                  // switch to the lane with a higher freezone distance (minimum distance from ego-vehicle to the next car in left and right lane) 
                   if (freedistance_left > freedistance_right)
                   {
                      lanegoal = leftlane; 
@@ -231,12 +237,14 @@ int main() {
                   if (mid_lane_occupied == true) {
                    lanegoal = lane; 
                   } else {
+                   // switch from left to the mid lane, if not occupied
                    lanegoal = midlane; 
                   }
               } else if (lane == rightlane) {
                   if (mid_lane_occupied == true) {
                    lanegoal = lane; 
                   } else {
+                   // switch from right to the mid lane, if not occupied
                    lanegoal = midlane; 
                   }                
               }
@@ -245,11 +253,11 @@ int main() {
             
             }
       
-          
-          
+          // gradually decrease velocity, if car in front of ego-vehicle is too close
           if(too_close)
           {
-            ref_vel -= .225;                      }
+            ref_vel -= .225;                      
+          }
           else if(ref_vel < 49.5)
           {
             ref_vel += .224;
@@ -343,7 +351,7 @@ int main() {
 
           // Calculate how to break up spline points so that we travel at our desired reference velocity
           double target_x = 30.0; //horizon target in meters
-          double target_y = s(target_x); //whtat the y is for the given x
+          double target_y = s(target_x); //what the y is for the given x
           double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y)); // distance calculation
           
           double x_add_on = 0;

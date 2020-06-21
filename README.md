@@ -1,6 +1,13 @@
-# CarND-Path-Planning-Project
+# **CarND-Path-Planning-Project**
 Self-Driving Car Engineer Nanodegree Program
    
+---
+
+[//]: # (Image References)
+
+[gif1]: ./media/pathplanning.gif "Particle Filter"
+
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
 
@@ -23,6 +30,91 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./path_planning`.
+
+## Project Result
+
+Here you can see a short sequence of the final simulation result of my highway driving path planner.
+![highway driving paht planner][gif1]
+
+All goals of this project have been achieved:
+* The car is able to drive at least 4.32 miles without incident.. (> 15 miles)
+* The car drives according to the speed limit. 
+* Max Acceleration and Jerk are not Exceeded.
+* Car does not have collisions.
+* The car stays in its lane, except for the time between changing lanes.
+* The car is able to change lanes.
+
+## Implementation
+
+In my path planner I use the sensor fusion data of all other cars on the same side of the road.
+With the frenet-frame value `d` I can track the car in front of the ego-vehicle in form of 
+```cpp 
+if(d < (2+4*lane+2) && d > (2+4*lane-2))
+```
+and signal a car that is too close (less than 30 meters) to the ego-vehicle.
+
+`check_car_s` can project the s value outwards with `check_car_s+=((double)prev_size*.02*check_speed);`
+
+I defined freezones for save overtaking and mark the specific lane as occupied if cars entering these areas. 
+```cpp
+if((check_car_s-car_s > - freezone_behind) && (check_car_s-car_s < freezone_infront))
+{
+  left_lane_occupied = true;
+}
+```
+
+If the ego-vehicle detects a car that is too close to it, in its own lane, the behavioural planning for lane-switch is activated: 
+
+```cpp
+  if (lane == midlane)
+      {
+        if ( (left_lane_occupied == true) && (right_lane_occupied == true) ) {
+          // keep lane, if left and right lane is occupied
+          lanegoal = lane;
+        } else if ( (left_lane_occupied == false) && (right_lane_occupied == true) ) {
+          lanegoal = leftlane; 
+          // switch to left lane, if only right lane is occupied
+        } else if ( (left_lane_occupied == true) && (right_lane_occupied == false) ) {
+          lanegoal = rightlane; 
+          // switch to right lane, if only left lane is occupied
+        } else if ( (left_lane_occupied == false) && (right_lane_occupied == false) ) {
+          // switch to the lane with a higher freezone distance (minimum distance from ego-vehicle to the next car in left and right lane) 
+          if (freedistance_left > freedistance_right)
+          {
+             lanegoal = leftlane; 
+          }
+          else {
+             lanegoal = rightlane; 
+          }
+        }
+      } else if (lane == leftlane) {
+          if (mid_lane_occupied == true) {
+           lanegoal = lane; 
+          } else {
+           // switch from left to the mid lane, if not occupied
+           lanegoal = midlane; 
+          }
+      } else if (lane == rightlane) {
+          if (mid_lane_occupied == true) {
+           lanegoal = lane; 
+          } else {
+           // switch from right to the mid lane, if not occupied
+           lanegoal = midlane; 
+          }                
+      }
+}
+```
+
+To avoid too high accelerations and jerks, the velocity is gradually increased and decreased with ` ref_vel -= .225;` and `ref_vel += .224;` according to planning maneuver and transformed into waypoints.
+
+To create a smooth path following steps are taken:
+* Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
+* use the previous path's end point as starting reference
+* Use two points that make the path tangent to the previous path's end point
+* create a spline and set (x,y) points to the spline
+* Calculate how to break up spline points so that we travel at our desired reference velocity
+* Fill up the rest of our path planner after filling it with previous points
+
 
 Here is the data provided from the Simulator to the C++ Program
 
